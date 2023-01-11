@@ -1,38 +1,14 @@
-const { ApolloServer, gql } =
-  process.env.NODE_ENV === 'production'
-    ? require('apollo-server-lambda')
-    : require('apollo-server');
-const { buildSubgraphSchema } = require('@apollo/subgraph');
+const { readFileSync } = require('fs');
+const { gql } = require('graphql-tag');
 const fetch = require('node-fetch');
-const {
-  ApolloServerPluginLandingPageLocalDefault
-} = require('apollo-server-core');
-const { ApolloServerPluginUsageReporting } = require('apollo-server-core');
-const { ApolloServerPluginInlineTrace } = require('apollo-server-core');
+const { resolve } = require('path');
+const { createServerHandler } = require('../utils/server');
 
-const typeDefs = gql`
-  extend schema
-    @link(
-      url: "https://specs.apollo.dev/federation/v2.0"
-      import: ["@key", "@shareable"]
-    )
-
-  """
-  Weather data from https://openweathermap.org/current
-  """
-  type Location @key(fields: "latitude longitude") {
-    latitude: Float
-    longitude: Float
-    weather: String
-    temperature: Float
-    feelsLike: Float
-    tempMin: Float
-    tempMax: Float
-    pressure: Float
-    humidity: Float
-    windSpeed: Float
-  }
-`;
+const typeDefs = gql(
+  readFileSync(resolve("api", "schemas", "weather.graphql"), {
+    encoding: "utf-8",
+  })
+);
 
 const resolvers = {
   Location: {
@@ -67,23 +43,8 @@ const resolvers = {
   }
 };
 
-const server = new ApolloServer({
-  introspection: true,
-  apollo: {
-    graphRef: 'simple-servers2@weather'
-  },
-  schema: buildSubgraphSchema({ typeDefs, resolvers }),
-  plugins: [
-    ApolloServerPluginLandingPageLocalDefault({ embed: true }),
-    ApolloServerPluginInlineTrace(),
-    ...(process.env.NODE_ENV === 'production'
-      ? [ApolloServerPluginUsageReporting()]
-      : [])
-  ]
-});
-
 const getHandler = (event, context) => {
-  const graphqlHandler = server.createHandler();
+  const graphqlHandler = createServerHandler(typeDefs, resolvers);
   if (!event.requestContext) {
     event.requestContext = context;
   }
@@ -91,13 +52,3 @@ const getHandler = (event, context) => {
 };
 
 exports.handler = getHandler;
-
-if (process.env.NODE_ENV !== 'production') {
-  server
-    .listen({
-      port: process.env.PORT || 4003
-    })
-    .then(({ url }) => {
-      console.log(`🚀  Server is running on ${url}`);
-    });
-}

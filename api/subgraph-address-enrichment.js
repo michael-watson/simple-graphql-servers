@@ -1,61 +1,34 @@
-const { ApolloServer, gql } =
-  process.env.NODE_ENV === 'production'
-    ? require('apollo-server-lambda')
-    : require('apollo-server');
-const { buildSubgraphSchema } = require('@apollo/subgraph');
-const fetch = require('node-fetch');
-const {
-  ApolloServerPluginLandingPageLocalDefault
-} = require('apollo-server-core');
-const { ApolloServerPluginUsageReporting } = require('apollo-server-core');
-const { ApolloServerPluginInlineTrace } = require('apollo-server-core');
-const utils = require('../utils/utils');
+const { gql } = require("graphql-tag");
+const fetch = require("node-fetch");
+const utils = require("../utils/utils");
+const { createServerHandler } = require("../utils/server");
+const { readFileSync } = require("fs");
+const { resolve } = require("path");
 
-const typeDefs = gql`
-  extend schema
-    @link(
-      url: "https://specs.apollo.dev/federation/v2.0"
-      import: ["@key", "@shareable"]
-    )
-
-  type Query {
-    address(streetAddress: String!): Location
-  }
-
-  type MemberSessionDetails @key(fields: "office") {
-    office: String!
-    location: Location
-  }
-
-  type Location @key(fields: "latitude longitude") {
-    latitude: Float
-    longitude: Float
-    neighbourhood: String
-    county: String
-    continent: String
-    country: String @shareable
-    region: String @shareable
-  }
-`;
+const typeDefs = gql(
+  readFileSync(resolve("api", "schemas", "address-enrichment.graphql"), {
+    encoding: "utf-8",
+  })
+);
 
 const resolvers = {
   Query: {
-    address: async (_, { streetAddress }) => {
+    address: async (_, { streetAddress }, { position_stack_key }) => {
       return await fetch(
-        `http://api.positionstack.com/v1/forward?access_key=${
-          process.env.POSITION_STACK_KEY
-        }&query=${encodeURI(streetAddress)}`
+        `http://api.positionstack.com/v1/forward?access_key=${position_stack_key}&query=${encodeURI(
+          streetAddress
+        )}`
       )
         .then(async (res) => {
           if (res.ok) {
             const response = await res.json();
             return utils.snakeToCamel(response.data[0]);
           } else {
-            throw new Error('Error fetching data. Did you include an API Key?');
+            throw new Error("Error fetching data. Did you include an API Key?");
           }
         })
         .catch((err) => new Error(err));
-    }
+    },
   },
   MemberSessionDetails: {
     __resolveReference: async ({ office }) => {
@@ -69,14 +42,14 @@ const resolvers = {
             const response = await res.json();
             return {
               office,
-              location: utils.snakeToCamel(response.data[0])
+              location: utils.snakeToCamel(response.data[0]),
             };
           } else {
-            throw new Error('Error fetching data. Did you include an API Key?');
+            throw new Error("Error fetching data. Did you include an API Key?");
           }
         })
         .catch((err) => new Error(err));
-    }
+    },
   },
   Location: {
     __resolveReference: async ({ latitude, longitude }) => {
@@ -88,31 +61,16 @@ const resolvers = {
             const response = await res.json();
             return utils.snakeToCamel(response.data[0]);
           } else {
-            throw new Error('Error fetching data. Did you include an API Key?');
+            throw new Error("Error fetching data. Did you include an API Key?");
           }
         })
         .catch((err) => new Error(err));
-    }
-  }
+    },
+  },
 };
 
-const server = new ApolloServer({
-  introspection: true,
-  apollo: {
-    graphRef: 'simple-servers2@address-enrichment'
-  },
-  schema: buildSubgraphSchema({ typeDefs, resolvers }),
-  plugins: [
-    ApolloServerPluginLandingPageLocalDefault({ embed: true }),
-    ApolloServerPluginInlineTrace(),
-    ...(process.env.NODE_ENV === 'production'
-      ? [ApolloServerPluginUsageReporting()]
-      : [])
-  ]
-});
-
 const getHandler = (event, context) => {
-  const graphqlHandler = server.createHandler();
+  const graphqlHandler = createServerHandler(typeDefs, resolvers);
   if (!event.requestContext) {
     event.requestContext = context;
   }
@@ -120,13 +78,3 @@ const getHandler = (event, context) => {
 };
 
 exports.handler = getHandler;
-
-if (process.env.NODE_ENV !== 'production') {
-  server
-    .listen({
-      port: process.env.PORT || 4001
-    })
-    .then(({ url }) => {
-      console.log(`🚀  Server is running on ${url}`);
-    });
-}

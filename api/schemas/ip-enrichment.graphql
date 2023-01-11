@@ -1,0 +1,17 @@
+extend schema
+  @link(
+    url: "https://specs.apollo.dev/federation/v2.0"
+    import: ["@key", "@shareable"]
+  )
+
+type Query {
+  ipLocation(ip: String!): Location
+  giveError(message: String): String
+}
+
+type Location @key(fields: "latitude longitude") {
+  latitude: Float
+  longitude: Float
+  postal: String
+  timezone: String
+}

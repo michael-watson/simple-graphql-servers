@@ -1,0 +1,24 @@
+extend schema
+  @link(
+    url: "https://specs.apollo.dev/federation/v2.0"
+    import: ["@key", "@shareable"]
+  )
+
+type Query {
+  address(streetAddress: String!): Location
+}
+
+type MemberSessionDetails @key(fields: "office") {
+  office: String!
+  location: Location
+}
+
+type Location @key(fields: "latitude longitude") {
+  latitude: Float
+  longitude: Float
+  neighbourhood: String
+  county: String
+  continent: String
+  country: String @shareable
+  region: String @shareable
+}

@@ -1,0 +1,24 @@
+extend schema
+  @link(
+    url: "https://specs.apollo.dev/federation/v2.0"
+    import: ["@key", "@shareable"]
+  )
+
+"""
+Sunrise data from https://sunrise-sunset.org/api
+All times shown in UTC
+"""
+type Location @key(fields: "latitude longitude") {
+  latitude: Float
+  longitude: Float
+  sunrise: String
+  sunset: String
+  solarNoon: String
+  dayLength: String
+  civilTwilightBegin: String
+  civilTwilightEnd: String
+  nauticalTwilightBegin: String
+  nauticalTwilightEnd: String
+  astronomicalTwilightBegin: String
+  astronomicalTwilightEnd: String
+}

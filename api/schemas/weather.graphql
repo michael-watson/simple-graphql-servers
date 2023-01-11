@@ -1,0 +1,23 @@
+extend schema
+  @link(
+    url: "https://specs.apollo.dev/federation/v2.0"
+    import: ["@key", "@shareable"]
+  )
+
+  type Query { me: String}
+
+"""
+Weather data from https://openweathermap.org/current
+"""
+type Location @key(fields: "latitude longitude") {
+  latitude: Float
+  longitude: Float
+  weather: String
+  temperature: Float
+  feelsLike: Float
+  tempMin: Float
+  tempMax: Float
+  pressure: Float
+  humidity: Float
+  windSpeed: Float
+}

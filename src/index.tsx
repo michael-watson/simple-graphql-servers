@@ -3,7 +3,7 @@ import { ApolloClient, InMemoryCache, ApolloProvider } from '@apollo/client';
 import { App } from './App';
 
 const client = new ApolloClient({
-  uri: 'https://main--congress2.apollographos.net/graphql',
+  uri: process.env.NODE_ENV === 'production' ? 'https://main--congress2.apollographos.net/graphql' : 'http://localhost:4000',
   cache: new InMemoryCache()
 });
 
